@@ -14,6 +14,8 @@ public class GameController : MonoBehaviour
     public GameObject CardPrefab;
     public TMP_Text ScoreText;
     public Button BackToMenuButton;
+    public GameObject EndgamePopup;
+    public Button RestartButton;
 
     private static readonly List<Color> Colors = new List<Color>
     {
@@ -40,14 +42,16 @@ public class GameController : MonoBehaviour
     private const float DestroyAfterSeconds = 0.6f;
     private const float HideAfterSeconds = 1;
     private bool _waitingForAnimation;
+    private bool _gameFinished;
 
     private void HandleClick(int x, int y)
     {
-        if(_waitingForAnimation) return;
+        if(_waitingForAnimation || _gameFinished) return;
         if(_selectedLocation == (x,y)) return; //the same card is clicked
         if (_selectedLocation == null)
         {
             _selectedLocation = (x, y);
+            _cards[x,y].GetComponent<Image>().color = Colors[_locations[x,y]-1];
         }
         else
         {
@@ -56,7 +60,6 @@ public class GameController : MonoBehaviour
             (int l1, int l2) = (_locations[a, b], _locations[x, y]);
             (GameObject c1, GameObject c2) = (_cards[a, b], _cards[x, y]);
 
-            c1.GetComponent<Image>().color = Colors[l1-1];
             c2.GetComponent<Image>().color = Colors[l2-1];
 
             bool hit = l1 == l2;
@@ -66,16 +69,35 @@ public class GameController : MonoBehaviour
                 StartCoroutine(DestroyAfter(DestroyAfterSeconds, c1));
                 StartCoroutine(DestroyAfter(DestroyAfterSeconds, c2));
                 UpdateScore(_score + 10);
+                CheckVictory();
             }
             else
             {
                 StartCoroutine(HideAfter(HideAfterSeconds, c1));
                 StartCoroutine(HideAfter(HideAfterSeconds, c2));
                 UpdateScore(_score - 2);
+                CheckDefeat();
             }
 
             _selectedLocation = null;
         }
+    }
+
+    private void CheckDefeat()
+    {
+        if (_score > -10) return;
+        _gameFinished = true;
+        EndgamePopup.GetComponentInChildren<TMP_Text>().text = "You have failed!";
+        EndgamePopup.SetActive(true);
+    }
+
+    private void CheckVictory()
+    {
+        bool cardsCleared = _locations.Cast<int>().All(x => x == 0);
+        if (!cardsCleared) return;
+        _gameFinished = true;
+        EndgamePopup.GetComponentInChildren<TMP_Text>().text = "Victory!";
+        EndgamePopup.SetActive(true);
     }
 
     private IEnumerator DestroyAfter(float seconds, GameObject go)
@@ -95,6 +117,7 @@ public class GameController : MonoBehaviour
     private void Awake()
     {
         BackToMenuButton.onClick.AddListener(() => SceneManager.LoadScene(Scenes.MainMenu));
+        RestartButton.onClick.AddListener(() => SceneManager.LoadScene(Scenes.Game));
         _height = SessionSettings.Instance.tilesHeight;
         _width = SessionSettings.Instance.tilesWidth;
         _locations = new int[_height, _width];
@@ -115,13 +138,11 @@ public class GameController : MonoBehaviour
                 var newPosition = new Vector2((2 * j - _width + 1) * 80, (2 * i - _height + 1) * 115);
                 go.transform.localPosition = newPosition;
                 go.GetComponent<Image>().color = BaseCardColor;
+                
+                //bind variables
                 int i1 = i;
                 int j1 = j;
-                go.AddTrigger(EventTriggerType.PointerClick, () =>
-                {
-                    Debug.Log($"Clicked {i1},{j1}");
-                    HandleClick(i1, j1);
-                });
+                go.AddTrigger(EventTriggerType.PointerClick, () => HandleClick(i1, j1));
             }
         }
     }
