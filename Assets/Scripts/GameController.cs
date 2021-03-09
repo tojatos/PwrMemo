@@ -1,12 +1,13 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using Debug = UnityEngine.Debug;
 
 public class GameController : MonoBehaviour
 {
@@ -16,6 +17,7 @@ public class GameController : MonoBehaviour
     public Button BackToMenuButton;
     public GameObject EndgamePopup;
     public Button RestartButton;
+    public InputActionMap GameplayActions;
 
     private static readonly List<Color> Colors = new List<Color>
     {
@@ -43,6 +45,24 @@ public class GameController : MonoBehaviour
     private const float HideAfterSeconds = 1;
     private bool _waitingForAnimation;
     private bool _gameFinished;
+
+    private void OnEnable() => GameplayActions.Enable();
+
+    private void OnDisable() => GameplayActions.Disable();
+
+    private void Awake()
+    {
+        // GameplayActions.AddAction("restart", binding: "<Keyboard>/r");
+        GameplayActions["restart"].performed += o => SceneManager.LoadScene(Scenes.Game);
+        BackToMenuButton.onClick.AddListener(() => SceneManager.LoadScene(Scenes.MainMenu));
+        RestartButton.onClick.AddListener(() => SceneManager.LoadScene(Scenes.Game));
+        _height = SessionSettings.Instance.tilesHeight;
+        _width = SessionSettings.Instance.tilesWidth;
+        _locations = new int[_height, _width];
+
+        GeneratePairsLocations();
+        CreateCards();
+    }
 
     private void HandleClick(int x, int y)
     {
@@ -114,17 +134,6 @@ public class GameController : MonoBehaviour
         _waitingForAnimation = false;
     }
 
-    private void Awake()
-    {
-        BackToMenuButton.onClick.AddListener(() => SceneManager.LoadScene(Scenes.MainMenu));
-        RestartButton.onClick.AddListener(() => SceneManager.LoadScene(Scenes.Game));
-        _height = SessionSettings.Instance.tilesHeight;
-        _width = SessionSettings.Instance.tilesWidth;
-        _locations = new int[_height, _width];
-
-        GeneratePairsLocations();
-        CreateCards();
-    }
 
     private void CreateCards()
     {
